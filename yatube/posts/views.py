@@ -57,7 +57,7 @@ def post_detail(request, post_id):
 @login_required
 def post_create(request):
     """Вью-функция страницы создания публикации"""
-    form = PostForm(request.POST or None)
+    form = PostForm(request.POST or None, files=request.FILES or None)
     if request.method == 'POST' and form.is_valid():
         post = form.save(commit=False)
         post.author = request.user
@@ -75,7 +75,11 @@ def post_edit(request, post_id):
     if post.author != request.user:
         return redirect('posts:post_detail', post_id=post_id)
 
-    form = PostForm(request.POST or None, instance=post)
+    form = PostForm(
+        request.POST or None,
+        files=request.FILES or None,
+        instance=post,
+    )
     if request.method == 'POST' and form.is_valid():
         post = form.save(commit=False)
         post.author = request.user

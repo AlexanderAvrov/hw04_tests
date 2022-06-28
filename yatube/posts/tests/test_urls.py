@@ -1,9 +1,10 @@
-from django.test import TestCase, Client
-from django.contrib.auth import get_user_model
-
 from http import HTTPStatus
 
-from ..models import Post, Group
+from django.contrib.auth import get_user_model
+from django.test import Client, TestCase
+from django.urls import reverse
+
+from ..models import Group, Post
 
 User = get_user_model()
 
@@ -24,7 +25,6 @@ class PostsUrlTests(TestCase):
             author=cls.user,
             text='Тестовый пост',
             group=cls.group,
-            id='5',
         )
 
     def setUp(self):
@@ -41,9 +41,9 @@ class PostsUrlTests(TestCase):
             '/': 'posts/index.html',
             '/group/test-slug/': 'posts/group_list.html',
             '/profile/author/': 'posts/profile.html',
-            '/posts/5/': 'posts/post_detail.html',
+            '/posts/1/': 'posts/post_detail.html',
             '/create/': 'posts/create_post.html',
-            '/posts/5/edit/': 'posts/create_post.html',
+            '/posts/1/edit/': 'posts/create_post.html',
         }
         for address, template in templates_url_names.items():
             with self.subTest(address=address):
@@ -56,7 +56,7 @@ class PostsUrlTests(TestCase):
             '/',
             '/group/test-slug/',
             '/profile/author/',
-            '/posts/5/',
+            '/posts/1/',
         )
         for url in urls:
             with self.subTest():
@@ -70,7 +70,7 @@ class PostsUrlTests(TestCase):
 
     def test_edit_page_exists(self):
         """Тест доступа к post_edit для авторизованного пользователя"""
-        response = self.post_author.get('/posts/5/edit/')
+        response = self.post_author.get('/posts/1/edit/')
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_unexisting_page(self):
@@ -82,7 +82,7 @@ class PostsUrlTests(TestCase):
         """Доступ к post_edit и post_create для неавторизованного юзера"""
         responses = (
             self.client.get('/create/'),
-            self.client.get('/posts/5/edit/'),
+            self.client.get('/posts/1/edit/'),
         )
         for response in responses:
             with self.subTest():
@@ -90,5 +90,23 @@ class PostsUrlTests(TestCase):
 
     def test_edit_page_for_not_author(self):
         """Тест доступа к post_edit для не автора публикации"""
-        response = self.authorized_client.get('/posts/5/edit/')
+        response = self.authorized_client.get('/posts/1/edit/')
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+    def test_redirects_for_guest_client(self):
+        """Проверка редиректа на страницах закрытых для гостей"""
+        response = self.client.get(reverse('posts:post_create'))
+        self.assertRedirects(response, '/auth/login/?next=/create/')
+        response = self.client.get(reverse(
+            'posts:post_edit',
+            kwargs={'post_id': self.post.id},
+        ))
+        self.assertRedirects(response, '/auth/login/?next=/posts/1/edit/')
+
+    def test_redirect_for_not_author_edit_post(self):
+        """Проверка редиректа при редактировании чужого поста"""
+        response = self.authorized_client.get('/posts/1/edit/')
+        self.assertRedirects(
+            response,
+            reverse('posts:post_detail', kwargs={'post_id': self.post.id}),
+        )

@@ -8,8 +8,9 @@ class PostForm(forms.ModelForm):
 
     class Meta:
         model = Post
-        fields = ('text', 'group')
+        fields = ('text', 'group', )#'image'
         help_texts = {
             'text': 'Текст новой публикации',
             'group': 'Сообщество к которой относится публикация',
+            #'image': 'Загрузите изображение'
         }

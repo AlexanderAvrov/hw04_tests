@@ -1,10 +1,10 @@
+from django import forms
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
-from django import forms
 
-from ..models import Post, Group
 from ..constants import POSTS_LIMIT
+from ..models import Group, Post
 
 User = get_user_model()
 SECOND_PAGE_COUNT_POST = 3
@@ -31,6 +31,7 @@ class PostsPagesTests(TestCase):
             for i in range(POSTS_LIMIT + SECOND_PAGE_COUNT_POST)
         ]
         Post.objects.bulk_create(cls.posts)
+        cls.posts = Post.objects.all()
 
     def setUp(self):
         self.user = User.objects.get(username='author')
@@ -43,17 +44,19 @@ class PostsPagesTests(TestCase):
             reverse('posts:index'): 'posts/index.html',
             reverse(
                 'posts:group_list',
-                kwargs={'slug': 'test-slug'}): 'posts/group_list.html',
+                kwargs={'slug': self.group.slug}): 'posts/group_list.html',
             reverse(
                 'posts:profile',
-                kwargs={'username': 'author'}): 'posts/profile.html',
+                kwargs={'username': self.user}): 'posts/profile.html',
             reverse(
                 'posts:post_detail',
-                kwargs={'post_id': '5'}): 'posts/post_detail.html',
+                kwargs={'post_id': self.posts[1].id}
+            ): 'posts/post_detail.html',
             reverse('posts:post_create'): 'posts/create_post.html',
             reverse(
                 'posts:post_edit',
-                kwargs={'post_id': '5'}): 'posts/create_post.html',
+                kwargs={'post_id': self.posts[1].id}
+            ): 'posts/create_post.html',
         }
         for reverse_name, template in templates_pages_names.items():
             with self.subTest(reverse_name=reverse_name):
@@ -64,19 +67,23 @@ class PostsPagesTests(TestCase):
         """Проверка контекста постов на главной, странице групп и профиля"""
         pages = (
             reverse('posts:index'),
-            reverse('posts:group_list', kwargs={'slug': 'test-slug'}),
-            reverse('posts:profile', kwargs={'username': 'author'}),
+            reverse('posts:group_list', kwargs={'slug': self.group.slug}),
+            reverse('posts:profile', kwargs={'username': self.user}),
         )
         for page in pages:
             with self.subTest(value=page):
                 response = self.authorized_client.get(page)
                 context_with_post = response.context['page_obj'][0]
-                post_text_0 = context_with_post.text
-                post_author_0 = context_with_post.author.username
-                post_group_0 = context_with_post.group.title
-                self.assertEqual(post_text_0, self.posts[1].text)
-                self.assertEqual(post_author_0, self.user.username)
-                self.assertEqual(post_group_0, self.group.title)
+                self.assertEqual(context_with_post.text, self.posts[0].text)
+                self.assertEqual(context_with_post.id, self.posts[0].id)
+                self.assertEqual(
+                    context_with_post.author.username,
+                    self.user.username,
+                )
+                self.assertEqual(
+                    context_with_post.group.title,
+                    self.group.title,
+                )
 
     def test_paginator_posts_pages_contains_ten_records(self):
         """На страницы приложения posts выводится по 10 постов"""
@@ -99,11 +106,11 @@ class PostsPagesTests(TestCase):
             reverse('posts:index') + '?page=2',
             reverse(
                 'posts:group_list',
-                kwargs={'slug': 'test-slug'},
+                kwargs={'slug': self.group.slug},
             ) + '?page=2',
             reverse(
                 'posts:profile',
-                kwargs={'username': 'author'},
+                kwargs={'username': self.user},
             ) + '?page=2',
         )
         for reverses in pages:
@@ -118,11 +125,10 @@ class PostsPagesTests(TestCase):
         """Шаблон group_list.html сформирован с правильным контекстом."""
         response = self.authorized_client.get(reverse(
             'posts:group_list',
-            kwargs={'slug': 'test-slug'},
+            kwargs={'slug': self.group.slug},
         ))
-        post_group_context = response.context['group']
-        group_slug_0 = post_group_context.slug
-        self.assertEqual(group_slug_0, 'test-slug')
+        group_from_context = response.context['group']
+        self.assertEqual(group_from_context, self.group)
         for post in response.context['page_obj']:
             with self.subTest(value=post.group.title):
                 self.assertEqual(post.group.title, self.group.title)
@@ -131,11 +137,10 @@ class PostsPagesTests(TestCase):
         """Шаблон profile.html сформирован с правильным контекстом."""
         response = self.authorized_client.get(reverse(
             'posts:profile',
-            kwargs={'username': 'author'},
+            kwargs={'username': self.user},
         ))
-        profile_page_context = response.context['author']
-        author_username_0 = profile_page_context.username
-        self.assertEqual(author_username_0, 'author')
+        author_from_context = response.context['author']
+        self.assertEqual(author_from_context, self.user)
         for post in response.context['page_obj']:
             with self.subTest(value=post.author):
                 self.assertEqual(post.author.id, self.user.id)
@@ -144,13 +149,12 @@ class PostsPagesTests(TestCase):
         """Шаблон post_detail.html сформирован с правильным контекстом."""
         response = self.authorized_client.get(reverse(
             'posts:post_detail',
-            kwargs={'post_id': '5'},
+            kwargs={'post_id': self.posts[1].id},
         ))
-        first_object = response.context['post']
-        post_text = first_object.text
-        post_id = first_object.id
-        self.assertEqual(post_text, self.posts[1].text)
-        self.assertEqual(post_id, 5)
+        post_from_post_detail = response.context['post']
+        self.assertEqual(post_from_post_detail.text, self.posts[1].text)
+        self.assertEqual(post_from_post_detail.id, self.posts[1].id)
+        self.assertEqual(post_from_post_detail.author, self.user)
 
     def test_create_post_page_show_correct_context(self):
         """Шаблон create_post сформирован с правильным контекстом."""
@@ -168,7 +172,7 @@ class PostsPagesTests(TestCase):
         """Шаблон post_edit сформирован с правильным контекстом."""
         response = self.authorized_client.get(reverse(
             'posts:post_edit',
-            kwargs={'post_id': '5'}
+            kwargs={'post_id': self.posts[1].id}
         ))
         form_fields = {
             'text': forms.fields.CharField,
@@ -182,31 +186,30 @@ class PostsPagesTests(TestCase):
 
     def test_group_shows_new_post_on_pages(self):
         """Пост попадает на главную и только в свою группу и профиль автора"""
-        self.user = User.objects.create_user(username='new_author')
-        self.group = Group.objects.create(title='new_group', slug='new-slug')
-        self.post = Post.objects.create(
-            author=self.user,
+        user = User.objects.create_user(username='new_author')
+        group = Group.objects.create(title='new_group', slug='new-slug')
+        post = Post.objects.create(
+            author=user,
             text='новый пост',
-            group=self.group,
-            id=135,
+            group=group,
         )
         pages = (
             reverse('posts:index'),
-            reverse('posts:group_list', kwargs={'slug': 'new-slug'}),
-            reverse('posts:profile', kwargs={'username': 'new_author'}),
+            reverse('posts:group_list', kwargs={'slug': group.slug}),
+            reverse('posts:profile', kwargs={'username': user.username}),
         )
         for reverses in pages:
             with self.subTest(value=reverses):
                 response = self.authorized_client.get(reverses)
                 self.assertEqual(
                     response.context.get('page_obj').object_list[0],
-                    self.post,
+                    post,
                 )
         response = self.authorized_client.get(reverse(
             'posts:group_list',
-            kwargs={'slug': 'test-slug'}
+            kwargs={'slug': self.group.slug},
         ))
         self.assertNotIn(
-            self.post,
+            post,
             response.context.get('page_obj').object_list,
         )
