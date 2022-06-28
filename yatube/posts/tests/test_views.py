@@ -74,9 +74,9 @@ class PostsPagesTests(TestCase):
                 post_text_0 = context_with_post.text
                 post_author_0 = context_with_post.author.username
                 post_group_0 = context_with_post.group.title
-                self.assertEqual(post_text_0, 'Тестовый пост')
-                self.assertEqual(post_author_0, 'author')
-                self.assertEqual(post_group_0, 'Test_group')
+                self.assertEqual(post_text_0, self.posts[1].text)
+                self.assertEqual(post_author_0, self.user.username)
+                self.assertEqual(post_group_0, self.group.title)
 
     def test_paginator_posts_pages_contains_ten_records(self):
         """На страницы приложения posts выводится по 10 постов"""
@@ -138,7 +138,7 @@ class PostsPagesTests(TestCase):
         self.assertEqual(author_username_0, 'author')
         for post in response.context['page_obj']:
             with self.subTest(value=post.author):
-                self.assertEqual(post.author, self.user)
+                self.assertEqual(post.author.id, self.user.id)
 
     def test_post_detail_page_show_correct_context(self):
         """Шаблон post_detail.html сформирован с правильным контекстом."""
@@ -149,7 +149,7 @@ class PostsPagesTests(TestCase):
         first_object = response.context['post']
         post_text = first_object.text
         post_id = first_object.id
-        self.assertEqual(post_text, 'Тестовый пост')
+        self.assertEqual(post_text, self.posts[1].text)
         self.assertEqual(post_id, 5)
 
     def test_create_post_page_show_correct_context(self):
@@ -178,7 +178,7 @@ class PostsPagesTests(TestCase):
             with self.subTest(value=value):
                 form_field = response.context.get('form').fields.get(value)
                 self.assertIsInstance(form_field, expected)
-        self.assertEqual(response.context['post'].text, 'Тестовый пост')
+        self.assertEqual(response.context['post'].text, self.posts[1].text)
 
     def test_group_shows_new_post_on_pages(self):
         """Пост попадает на главную и только в свою группу и профиль автора"""
