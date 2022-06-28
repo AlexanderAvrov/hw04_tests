@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from ..models import Group, Post
+from ..constants import MAX_CHAR_LIMIT
 
 User = get_user_model()
 
@@ -20,21 +21,31 @@ class PostModelTest(TestCase):
         )
         cls.post = Post.objects.create(
             author=cls.user,
-            text='Тестовый пост',
+            text='От альянса кочующих гильдий'
+                 'И до собратства танцующих синти'
+                 'Одна коалиция сопротивляется'
+                 'Карцерной матрице тайных полиций'
+                 'Чему? Пуританству кромешного блага'
+                 'Чему? Производству, где плавится особь'
+                 'Мы как дома внутри снежного шара'
+                 'Тряхнуло слегка — моментально заносит'
+                 'Эй, старшина, снятся дальние страны?'
+                 'Зовёт золотое руно?'
+                 'Значит ты завербован давно'
+                 'И наш орден берёт тебя в строй'
+                 'Под своё боевое крыло',
             group=cls.group,
         )
 
     def test_model_post_have_correct_object_names(self):
         """Проверка,  что у модели Post корректно работает __str__."""
-        post = PostModelTest.post
-        expected_object_name = post.text
-        self.assertEqual(expected_object_name, str(post))
-
-    def test_model_post_have_correct_object_names(self):
-        """Проверка,  что у модели Group корректно работает __str__."""
-        group = PostModelTest.group
-        expected_object_name = group.title
-        self.assertEqual(expected_object_name, str(group))
+        models_str = {
+            self.post.text[:MAX_CHAR_LIMIT]: str(self.post),
+            self.group.title: str(self.group),
+        }
+        for name, value in models_str.items():
+            with self.subTest(name=name):
+                self.assertEqual(name, value)
 
     def test_verbose_name(self):
         """Проверка verbose_name совпадает с ожидаемым."""

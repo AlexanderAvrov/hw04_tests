@@ -4,8 +4,10 @@ from django.urls import reverse
 from django import forms
 
 from ..models import Post, Group
+from ..constants import POSTS_LIMIT
 
 User = get_user_model()
+SECOND_PAGE_COUNT_POST = 3
 
 
 class PostsPagesTests(TestCase):
@@ -20,17 +22,17 @@ class PostsPagesTests(TestCase):
             slug='test-slug',
             description='Test_description',
         )
-        count = 0
-        while count < 13:
-            cls.post = Post.objects.create(
+        cls.posts = [
+            Post(
                 author=cls.user,
                 text='Тестовый пост',
                 group=cls.group,
             )
-            count += 1
+            for i in range(POSTS_LIMIT + SECOND_PAGE_COUNT_POST)
+        ]
+        Post.objects.bulk_create(cls.posts)
 
     def setUp(self):
-        # авторизованный клиент, автор поста
         self.user = User.objects.get(username='author')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
@@ -58,16 +60,23 @@ class PostsPagesTests(TestCase):
                 response = self.authorized_client.get(reverse_name)
                 self.assertTemplateUsed(response, template)
 
-    def test_index_page_show_correct_context(self):
-        """Шаблон index.html сформирован с правильным контекстом."""
-        response = self.authorized_client.get(reverse('posts:index'))
-        first_object = response.context['page_obj'][0]
-        post_text_0 = first_object.text
-        post_author_0 = first_object.author.username
-        post_group_0 = first_object.group.title
-        self.assertEqual(post_text_0, 'Тестовый пост')
-        self.assertEqual(post_author_0, 'author')
-        self.assertEqual(post_group_0, 'Test_group')
+    def test_pages_of_post_app_about_context(self):
+        """Проверка контекста постов на главной, странице групп и профиля"""
+        pages = (
+            reverse('posts:index'),
+            reverse('posts:group_list', kwargs={'slug': 'test-slug'}),
+            reverse('posts:profile', kwargs={'username': 'author'}),
+        )
+        for page in pages:
+            with self.subTest(value=page):
+                response = self.authorized_client.get(page)
+                context_with_post = response.context['page_obj'][0]
+                post_text_0 = context_with_post.text
+                post_author_0 = context_with_post.author.username
+                post_group_0 = context_with_post.group.title
+                self.assertEqual(post_text_0, 'Тестовый пост')
+                self.assertEqual(post_author_0, 'author')
+                self.assertEqual(post_group_0, 'Test_group')
 
     def test_paginator_posts_pages_contains_ten_records(self):
         """На страницы приложения posts выводится по 10 постов"""
@@ -79,7 +88,10 @@ class PostsPagesTests(TestCase):
         for reverses in pages:
             with self.subTest(value=reverses):
                 response = self.authorized_client.get(reverses)
-                self.assertEqual(len(response.context['page_obj']), 10)
+                self.assertEqual(
+                    len(response.context['page_obj']),
+                    POSTS_LIMIT
+                )
 
     def test_second_posts_pages_contains_three_records(self):
         """Проверка: на второй странице паджинации должно быть три поста."""
@@ -97,7 +109,10 @@ class PostsPagesTests(TestCase):
         for reverses in pages:
             with self.subTest(value=reverses):
                 response = self.authorized_client.get(reverses)
-                self.assertEqual(len(response.context['page_obj']), 3)
+                self.assertEqual(
+                    len(response.context['page_obj']),
+                    SECOND_PAGE_COUNT_POST,
+                )
 
     def test_group_page_show_correct_context(self):
         """Шаблон group_list.html сформирован с правильным контекстом."""
@@ -105,16 +120,12 @@ class PostsPagesTests(TestCase):
             'posts:group_list',
             kwargs={'slug': 'test-slug'},
         ))
-        first_object = response.context['page_obj'][0]
-        post_text_0 = first_object.text
-        post_author_0 = first_object.author.username
-        post_group_0 = first_object.group.title
-        second_object = response.context['group']
-        group_slug_0 = second_object.slug
-        self.assertEqual(post_text_0, 'Тестовый пост')
-        self.assertEqual(post_author_0, 'author')
-        self.assertEqual(post_group_0, 'Test_group')
+        post_group_context = response.context['group']
+        group_slug_0 = post_group_context.slug
         self.assertEqual(group_slug_0, 'test-slug')
+        for post in response.context['page_obj']:
+            with self.subTest(value=post.group.title):
+                self.assertEqual(post.group.title, self.group.title)
 
     def test_profile_page_show_correct_context(self):
         """Шаблон profile.html сформирован с правильным контекстом."""
@@ -122,16 +133,12 @@ class PostsPagesTests(TestCase):
             'posts:profile',
             kwargs={'username': 'author'},
         ))
-        first_object = response.context['page_obj'][0]
-        post_text_0 = first_object.text
-        post_author_0 = first_object.author.username
-        post_group_0 = first_object.group.title
-        second_object = response.context['author']
-        author_username_0 = second_object.username
-        self.assertEqual(post_text_0, 'Тестовый пост')
-        self.assertEqual(post_author_0, 'author')
-        self.assertEqual(post_group_0, 'Test_group')
+        profile_page_context = response.context['author']
+        author_username_0 = profile_page_context.username
         self.assertEqual(author_username_0, 'author')
+        for post in response.context['page_obj']:
+            with self.subTest(value=post.author):
+                self.assertEqual(post.author, self.user)
 
     def test_post_detail_page_show_correct_context(self):
         """Шаблон post_detail.html сформирован с правильным контекстом."""

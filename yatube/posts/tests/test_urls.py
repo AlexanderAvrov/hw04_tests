@@ -1,6 +1,8 @@
 from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 
+from http import HTTPStatus
+
 from ..models import Post, Group
 
 User = get_user_model()
@@ -26,13 +28,9 @@ class PostsUrlTests(TestCase):
         )
 
     def setUp(self):
-        # неавторизованный клиент
-        self.guest_client = Client()
-        # авторизованный клиент
         self.user = User.objects.create_user(username='noname')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
-        # авторизованный клиент, автор поста
         self.user_author = User.objects.get(username='author')
         self.post_author = Client()
         self.post_author.force_login(self.user_author)
@@ -62,20 +60,35 @@ class PostsUrlTests(TestCase):
         )
         for url in urls:
             with self.subTest():
-                response = self.guest_client.get(url)
-                self.assertEqual(response.status_code, 200)
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_create_page_exists(self):
         """Тест доступа к /create/ для авторизованного пользователя"""
         response = self.authorized_client.get('/create/')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_edit_page_exists(self):
         """Тест доступа к post_edit для авторизованного пользователя"""
         response = self.post_author.get('/posts/5/edit/')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_unexisting_page(self):
         """Тест несуществующей страницы"""
-        response = self.guest_client.get('/unexisting_page/')
-        self.assertEqual(response.status_code, 404)
+        response = self.client.get('/unexisting_page/')
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+
+    def test_confidentiality_pages_for_guest_clien(self):
+        """Доступ к post_edit и post_create для неавторизованного юзера"""
+        responses = (
+            self.client.get('/create/'),
+            self.client.get('/posts/5/edit/'),
+        )
+        for response in responses:
+            with self.subTest():
+                self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+    def test_edit_page_for_not_author(self):
+        """Тест доступа к post_edit для не автора публикации"""
+        response = self.authorized_client.get('/posts/5/edit/')
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)

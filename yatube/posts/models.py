@@ -47,4 +47,4 @@ class Group(models.Model):
     description = models.TextField('Описание сообщества')
 
     def __str__(self):
-        return self.title[:MAX_CHAR_LIMIT]
+        return self.title
