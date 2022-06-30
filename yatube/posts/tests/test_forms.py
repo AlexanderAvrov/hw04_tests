@@ -40,7 +40,7 @@ class FormsTests(TestCase):
         response = self.authorized_client.post(
             reverse('posts:post_create'),
             data=form_data,
-            follow=True
+            follow=True,
         )
         self.assertRedirects(response, reverse(
             'posts:profile',
@@ -48,7 +48,7 @@ class FormsTests(TestCase):
         ))
         self.assertEqual(Post.objects.count(), posts_count + 1)
         self.assertEqual(
-            Post.objects.filter(text=form_data['text']).get().text,
+            Post.objects.latest('pub_date').text,
             form_data['text'],
         )
         self.assertEqual(
@@ -75,7 +75,7 @@ class FormsTests(TestCase):
         ))
         self.assertEqual(Post.objects.count(), posts_count)
         self.assertEqual(
-            Post.objects.filter(text=form_data['text']).get().text,
+            Post.objects.get(id=self.post.id).text,
             form_data['text'],
         )
         self.assertEqual(

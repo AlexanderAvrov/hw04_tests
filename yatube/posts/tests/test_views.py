@@ -129,9 +129,6 @@ class PostsPagesTests(TestCase):
         ))
         group_from_context = response.context['group']
         self.assertEqual(group_from_context, self.group)
-        for post in response.context['page_obj']:
-            with self.subTest(value=post.group.title):
-                self.assertEqual(post.group.title, self.group.title)
 
     def test_profile_page_show_correct_context(self):
         """Шаблон profile.html сформирован с правильным контекстом."""
@@ -141,9 +138,6 @@ class PostsPagesTests(TestCase):
         ))
         author_from_context = response.context['author']
         self.assertEqual(author_from_context, self.user)
-        for post in response.context['page_obj']:
-            with self.subTest(value=post.author):
-                self.assertEqual(post.author.id, self.user.id)
 
     def test_post_detail_page_show_correct_context(self):
         """Шаблон post_detail.html сформирован с правильным контекстом."""
@@ -155,6 +149,7 @@ class PostsPagesTests(TestCase):
         self.assertEqual(post_from_post_detail.text, self.posts[1].text)
         self.assertEqual(post_from_post_detail.id, self.posts[1].id)
         self.assertEqual(post_from_post_detail.author, self.user)
+        self.assertEqual(post_from_post_detail.group, self.group)
 
     def test_create_post_page_show_correct_context(self):
         """Шаблон create_post сформирован с правильным контекстом."""
