@@ -47,18 +47,9 @@ class FormsTests(TestCase):
             kwargs={'username': 'author'},
         ))
         self.assertEqual(Post.objects.count(), posts_count + 1)
-        self.assertEqual(
-            Post.objects.latest('pub_date').text,
-            form_data['text'],
-        )
-        self.assertEqual(
-            Post.objects.filter(text=form_data['text']).get().group.id,
-            form_data['group'],
-        )
-        self.assertEqual(
-            Post.objects.filter(text=form_data['text']).get().author,
-            self.user,
-        )
+        self.assertEqual(Post.objects.first().text, form_data['text'])
+        self.assertEqual(Post.objects.first().group.id, form_data['group'])
+        self.assertEqual(Post.objects.first().author, self.user)
 
     def test_edit_post_form_by_atorized_client(self):
         """Валидная форма изменяет пост от авторизованного автора поста"""
@@ -79,10 +70,7 @@ class FormsTests(TestCase):
             form_data['text'],
         )
         self.assertEqual(
-            Post.objects.filter(text=form_data['text']).get().group.id,
+            Post.objects.get(id=self.post.id).group.id,
             form_data['group'],
         )
-        self.assertEqual(
-            Post.objects.filter(text=form_data['text']).get().author,
-            self.user,
-        )
+        self.assertEqual(Post.objects.get(id=self.post.id).author, self.user)
